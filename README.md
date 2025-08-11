@@ -1,46 +1,229 @@
-StreamZ
-# Tutorial Template: Two Docker Approaches
+# Bitcoin Price Data Ingestion with Streamz
 
-- This directory provides two versions of the same tutorial setup to help you
-  work with Jupyter notebooks and Python scripts inside Docker environments
+A Python application for collecting real-time Bitcoin price data using cryptocurrency APIs and streaming data ingestion with Streamz. This tool provides continuous monitoring of Bitcoin prices with built-in rate limiting, error handling, and data visualization.
 
-- Both versions run the same code but use different Docker approaches, with
-  different level of complexity and maintainability
+## Features
 
-## 1. `data605_style` (Simple Docker Environment)
+- **Real-time data collection** from cryptocurrency APIs
+- **Dual API support**: CoinGecko (primary) and CryptoCompare (fallback)
+- **Rate limiting protection** with exponential backoff
+- **Live data visualization** with matplotlib
+- **Streamz integration** for reactive data processing
+- **CSV export** functionality for data persistence
+- **Error handling** and retry mechanisms
 
-- This version is modeled after the setup used in DATA605 tutorials
-- This template provides a ready-to-run environment, including scripts to build,
-  run, and clean the Docker container.
+## Installation
 
-- For your specific project, you should:
-  - Modify the Dockerfile to add project-specific dependencies
-  - Update bash/scripts accordingly
-  - Expose additional ports if your project requires them
+Install the required dependencies:
 
-## 2. `causify_style` (Causify AI dev-system)
+```bash
+pip install streamz requests pandas matplotlib
+```
 
-- This setup reflects the approach commonly used in Causify AI dev-system
-- **Recommended** for students familiar with Docker or those wishing to explore a
-  production-like setup
-- Pros
-  - Docker layer written in Python to make it easy to extend and test
-  - Less redundant since code is factored out
-  - Used for real-world development, production workflows
-  - Used for all internships, RA / TA, full-time at UMD DATA605 / MSML610 /
-    Causify 
-- Cons
-  - It is more complex to use and configure
-  - More dependencies from the 
-- For thin environment setup instructions, refer to:  
-  [How to Set Up Development on Laptop](https://github.com/causify-ai/helpers/blob/master/docs/onboarding/intern.set_up_development_on_laptop.how_to_guide.md)
+## Quick Start
 
-## Reference Tutorials
+### Using CoinGecko API (Default)
 
-- The `tutorial_github` example has been implemented in both environments for you
-  to refer to:
-  - `tutorial_github_data605_style` uses the simpler DATA605 approach
-  - `tutorial_github_causify_style` uses the more complex Causify approach
+```python
+# Run the data collection for 60 seconds
+collected_data = start_data_collection(60)
 
-- Choose the approach that best fits your comfort level and project needs. Both
-  are valid depending on your use case.
+# Save data to CSV
+bitcoin_data.to_csv('bitcoin_price_data.csv', index=False)
+```
+
+### Using CryptoCompare API (Alternative)
+
+```python
+# Switch to alternative API
+setup_alternative_api()
+
+# Run data collection for 5 minutes
+collected_data = start_data_collection(300)
+```
+
+## API Configuration
+
+### CoinGecko API (Primary)
+- **Endpoint**: `https://api.coingecko.com/api/v3/simple/price`
+- **Rate Limit**: Conservative approach with 30-second intervals
+- **Data Includes**: Price, market cap, 24h volume, 24h change percentage
+- **Free Tier**: No API key required
+
+### CryptoCompare API (Fallback)
+- **Endpoint**: `https://min-api.cryptocompare.com/data/price`
+- **Rate Limit**: 5-second backoff intervals
+- **Data Includes**: Price, market cap, 24h volume, 24h change percentage
+- **Free Tier**: No API key required
+
+## Data Structure
+
+The collected data includes the following fields:
+
+| Field | Description | Type |
+|-------|-------------|------|
+| `timestamp` | Data collection timestamp | DateTime |
+| `price_usd` | Current Bitcoin price in USD | Float |
+| `market_cap_usd` | Market capitalization in USD | Float |
+| `24h_volume_usd` | 24-hour trading volume in USD | Float |
+| `24h_change_percent` | 24-hour price change percentage | Float |
+
+## Configuration Options
+
+### Polling Interval
+```python
+POLL_INTERVAL_SECONDS = 30  # Time between API calls
+```
+
+### Collection Duration
+```python
+# Collect data for specified duration (in seconds)
+start_data_collection(duration_seconds=300)  # 5 minutes
+```
+
+### Rate Limiting
+```python
+def fetch_bitcoin_data(max_retries=3, initial_backoff=10):
+    # Built-in exponential backoff for rate limit handling
+```
+
+## Functions Reference
+
+### Core Functions
+
+#### `fetch_bitcoin_data(max_retries=3, initial_backoff=10)`
+Fetches Bitcoin data from the CoinGecko API with retry logic and rate limiting protection.
+
+**Parameters:**
+- `max_retries`: Maximum number of retry attempts (default: 3)
+- `initial_backoff`: Initial backoff time in seconds (default: 10)
+
+**Returns:** Dictionary with Bitcoin market data or None if failed
+
+#### `process_data(data)`
+Processes incoming data, updates the global DataFrame, and displays real-time visualization.
+
+**Parameters:**
+- `data`: Dictionary containing Bitcoin market data
+
+#### `start_data_collection(duration_seconds=300)`
+Main function to run the data collection process for a specified duration.
+
+**Parameters:**
+- `duration_seconds`: Duration to collect data in seconds (default: 300)
+
+**Returns:** DataFrame containing all collected data
+
+### Alternative API Functions
+
+#### `setup_alternative_api()`
+Switches the data collection to use CryptoCompare API instead of CoinGecko.
+
+#### `fetch_cryptocompare_data(max_retries=3, initial_backoff=5)`
+Fetches Bitcoin data from CryptoCompare API with similar retry logic.
+
+## Usage Examples
+
+### Basic Data Collection
+```python
+# Collect data for 2 minutes with live plotting
+bitcoin_data = start_data_collection(120)
+print(f"Collected {len(bitcoin_data)} data points")
+```
+
+### Extended Collection with CSV Export
+```python
+# Collect data for 30 minutes
+extended_data = start_data_collection(1800)
+
+# Export to CSV with timestamp
+filename = f"bitcoin_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+extended_data.to_csv(filename, index=False)
+print(f"Data saved to {filename}")
+```
+
+### Using Alternative API
+```python
+# Switch to CryptoCompare if CoinGecko is unavailable
+setup_alternative_api()
+crypto_compare_data = start_data_collection(600)  # 10 minutes
+```
+
+## Error Handling
+
+The application includes robust error handling for common scenarios:
+
+- **Rate Limiting (HTTP 429)**: Automatic exponential backoff
+- **Network Errors**: Retry mechanism with configurable attempts
+- **API Downtime**: Graceful degradation with error messages
+- **Data Processing Errors**: Exception catching with continued operation
+
+## Rate Limiting Best Practices
+
+To be respectful to API providers:
+
+- **Default interval**: 30 seconds between requests
+- **Random jitter**: ±10% variance to avoid synchronized requests
+- **Exponential backoff**: Automatic handling of rate limit responses
+- **User-Agent header**: Identifies requests as educational/research
+
+## Data Visualization
+
+The application provides real-time visualization features:
+
+- **Live price chart**: Updates with each new data point
+- **Current metrics display**: Shows latest price and 24h change
+- **Data collection progress**: Tracks total points collected
+- **Time series plotting**: Historical price trend visualization
+
+## Output Files
+
+### CSV Export Format
+```csv
+timestamp,price_usd,market_cap_usd,24h_volume_usd,24h_change_percent
+2024-01-15 10:30:00,42500.50,834567890123.45,28765432109.87,2.34
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Rate Limiting Errors**
+```
+Solution: Increase POLL_INTERVAL_SECONDS or wait before retrying
+```
+
+**API Connection Issues**
+```
+Solution: Check internet connection and try alternative API
+```
+
+**Memory Usage**
+```
+Solution: Implement data chunking for extended collection periods
+```
+
+### Debug Mode
+Enable verbose logging by modifying the error handling sections:
+
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+```
+
+## Contributing
+
+To extend this application:
+
+1. **Add new APIs**: Follow the pattern in `setup_alternative_api()`
+2. **Enhance visualization**: Modify the `process_data()` function
+3. **Add data processing**: Extend the Streamz pipeline
+4. **Implement persistence**: Add database storage options
+
+## License
+
+This project is for educational and research purposes. Please respect the terms of service of the cryptocurrency APIs used.
+
+## Disclaimer
+
+This tool is for educational purposes only. Cryptocurrency prices are volatile and this data should not be used for financial decision-making without proper analysis and risk assessment.
